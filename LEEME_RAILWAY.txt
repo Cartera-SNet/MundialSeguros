@@ -1,0 +1,40 @@
+DESPLIEGUE EN RAILWAY
+=====================
+
+PASOS (primera vez):
+
+1. Crea una cuenta en https://railway.app
+2. Crea un nuevo proyecto → "Deploy from GitHub repo"
+   (o usa el CLI: npm install -g @railway/cli && railway login && railway init)
+
+3. Sube el codigo a un repo de GitHub primero.
+   Los archivos necesarios son:
+     app.py, templates/, static/, requirements.txt,
+     Procfile, railway.toml, nixpacks.toml
+
+4. En Railway, ve al servicio → Settings → Volumes:
+   - Crea un volumen montado en /data
+   - Esto hace que los ZIPs y el progreso.json sean PERMANENTES entre deploys
+
+5. Variables de entorno (Settings → Variables):
+   - DATA_DIR = /data   (ya configurado en el código)
+   - No se necesitan más por ahora
+
+6. Deploy → Railway construye la imagen y arranca.
+   El primer build tarda 5-10 minutos (instala Chromium).
+
+NOTAS IMPORTANTES:
+- La URL pública de Railway es la dirección de tu app.
+- Los archivos descargados van a /data/downloads/ (volumen persistente).
+- El progreso.json también vive ahí y sobrevive cualquier redeploy.
+- Para borrar SOLO los soportes (ZIPs/PDFs): botón "Borrar soportes" en la app.
+- Para borrar el progreso de un lote: botón "Reiniciar" en la app.
+
+ESTRUCTURA DE CARPETAS EN /data/downloads/:
+  Lote_20260611_1430/
+    CLINICA_BAHIA_INVERSIONES_AZALUD/
+      progreso.json          ← permanente, no se borra con "Borrar soportes"
+      DEV/                   ← PDFs del ZIP de DEV (se borran con "Borrar soportes")
+      LIQ/                   ← PDFs del ZIP de LIQ (se borran con "Borrar soportes")
+      reporte_cartas.xlsx    ← (se borra con "Borrar soportes")
+    CLINICA_BAHIA_INVERSIONES_AZALUD.zip  ← ZIP final (se borra con "Borrar soportes")

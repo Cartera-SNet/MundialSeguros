@@ -1,0 +1,75 @@
+DESCARGADOR DE CARTAS GLOSA — SEGUROS MUNDIAL (Portal A3M / iqdigital)
+=====================================================================
+
+QUÉ HACE
+--------
+Automatiza la descarga masiva de cartas glosa del portal de Seguros Mundial
+siguiendo el instructivo (PASOS 1 y 7 al 14), OMITIENDO los pasos 2 a 6
+(reporte MS). En lugar de generar el reporte, tú cargas un Excel con la
+columna "Consecutivo" (los valores DEV-... y LIQ-...) y el programa descarga
+la carta glosa de cada uno.
+
+El tipo de consulta se detecta AUTOMÁTICAMENTE por el prefijo:
+   DEV-...  ->  "No Dev/Obj"
+   LIQ-...  ->  "No Liquidación"
+   CMVIQ.../otros  ->  "No Radicado"
+
+REQUISITOS
+----------
+- Windows con Python 3.10 o superior (marca "Add Python to PATH" al instalar).
+- Conexión a internet.
+
+CÓMO USARLO
+-----------
+1. Doble clic en "iniciar.bat". Hace TODO solo:
+   - comprueba que tengas Python,
+   - crea el entorno virtual (carpeta "venv"),
+   - instala las dependencias y el navegador Chromium (solo la PRIMERA vez;
+     las siguientes arranca de inmediato),
+   - levanta el servidor y abre el navegador en http://localhost:8080 cuando
+     ya esté listo.
+   Deja esa ventana negra ABIERTA mientras uses el programa.
+2. En el panel: digite usuario y contraseña de la IPS.
+3. Carga el Excel de consecutivos (botón "Cargar lista") o pega la lista.
+4. (Opcional) Pon un nombre de lote y tipo de acceso.
+5. Clic en "Iniciar descarga". Se abrirá una ventana de Chrome con tus datos
+   ya cargados.
+6. >>> RESUELVE EL reCAPTCHA y presiona INGRESAR tú mismo en esa ventana <<<
+   (el captcha NO se automatiza). Apenas entres, el programa continúa solo:
+   abre "Consulta de Cartas" y ABRE UNA SEGUNDA PESTAÑA. Una pestaña va
+   descargando las DEV/Obj y la otra las LIQ, alternándose. Verás ambas
+   pestañas trabajando. (Un solo login para las dos.)
+7. Al terminar verás los archivos descargados y un ZIP con todo + un reporte
+   Excel (descargadas y errores).
+
+SOBRE LAS DOS PESTAÑAS
+----------------------
+- Un único inicio de sesión (resuelves el captcha una sola vez).
+- Pestaña 1: consecutivos DEV-... (No Dev/Obj). Pestaña 2: LIQ-... (No Liquidación).
+  Los "No Radicado"/otros se reparten entre ambas para balancear.
+- El buzón (ícono del sobre) es uno solo y compartido por la sesión; por eso la
+  descarga se hace por turnos (nunca las dos pestañas descargan a la vez). Así
+  no se cruzan los archivos. Es la forma más confiable.
+
+BOTONES
+-------
+- Detener: para el proceso y genera un ZIP parcial con lo descargado.
+- Reiniciar: borra el progreso del lote (vuelve a descargar todo).
+- Lista: muestra los consecutivos en cola y su tipo detectado.
+
+NOTAS
+-----
+- Si cierras y vuelves a iniciar el mismo lote, NO repite las que ya bajó
+  (reanudación automática).
+- Los archivos quedan en "downloads\<lote>\<NOMBRE_IPS>\". El nombre de la IPS
+  se detecta automaticamente segun el NIT que aparezca en el correo/usuario del
+  login (mapa interno NIT -> IPS). Si el NIT no esta en el mapa, usa "IPS_DESCONOCIDA".
+
+SI EL CMD SE ABRE Y SE CIERRA SOLO (no arranca)
+-----------------------------------------------
+Para ver el error: abre el CMD manualmente (tecla Windows -> escribe "cmd"
+-> Enter), arrastra "iniciar.bat" a esa ventana y pulsa Enter. Así el mensaje
+de error queda visible.
+
+Requisito: tener Python 3.10 o superior instalado, con la casilla
+"Add Python to PATH" marcada al instalar (descarga: python.org/downloads).

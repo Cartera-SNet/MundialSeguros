@@ -1,0 +1,33 @@
+# Nixpacks config — instala las dependencias del sistema para Playwright/Chromium
+[phases.setup]
+nixPkgs = [
+  "python312",
+  "chromium",
+  "nss",
+  "nspr",
+  "atk",
+  "cups",
+  "libdrm",
+  "libxcb",
+  "libX11",
+  "libXcomposite",
+  "libXdamage",
+  "libXext",
+  "libXfixes",
+  "libXrandr",
+  "mesa",
+  "libgbm",
+  "expat",
+  "libxkbcommon",
+  "alsa-lib",
+]
+
+[phases.install]
+cmds = [
+  "pip install -r requirements.txt",
+  "playwright install chromium",
+  "playwright install-deps chromium"
+]
+
+[start]
+cmd = "python app.py"
