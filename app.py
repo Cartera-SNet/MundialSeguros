@@ -291,7 +291,21 @@ def _hacer_login(page, usuario, password, login_timeout):
             time.sleep(2)
             return True
         if "/home" in page.url or "/wallet" in page.url:
-            log("Login exitoso por cambio de URL.")
+            # URL cambió pero Angular puede estar aún inicializando.
+            # Esperar a que el menú principal sea visible antes de continuar.
+            log("URL interna detectada. Esperando que Angular cargue el menú...")
+            for _ in range(15):
+                if job_state.get("stopping"):
+                    return False
+                txt2 = _texto_pagina(page)
+                if re.search(r"Inicio|DOCUMENTOS DE AYUDA|Cartera IPS|Menú Principal|Cerrar Sesión", txt2, re.I):
+                    log("Login exitoso, menú principal visible.")
+                    time.sleep(2)
+                    return True
+                time.sleep(1)
+            # Si tras 15s no aparece el menú, igual continuamos (página puede estar cargada)
+            log("Login exitoso por cambio de URL (menú no detectado, continuando).")
+            time.sleep(3)
             return True
         if "Tipo de Acceso" in txt and "Ingresar" in txt:
             log("Aún en página de login. Si hay reCAPTCHA, resuélvelo manualmente en el navegador.", "warn")
@@ -615,10 +629,15 @@ def run_automation(usuario, password, tipo_acceso, lote, valores, download_path,
 
             log("Navegando directamente a Consulta de Cartas...")
             page.goto(CONSULTA_CARTAS_URL, wait_until="domcontentloaded", timeout=60000)
-            time.sleep(3)
-            if not _esperar_texto(page, r"Seleccione tipo de solicitud", timeout=15):
-                raise Exception("No se detectó la pantalla de Consulta de Cartas después de navegación directa.")
-            log("Pantalla 'Consulta de Cartas' cargada correctamente.")
+            time.sleep(5)  # dar tiempo a Angular para renderizar
+            # Detectar cualquier elemento característico de esa pantalla
+            if not _esperar_texto(page, r"(?i)seleccione tipo|BUSQUEDA|Busqueda|Consultar|CONSULTAR", timeout=30):
+                # Último recurso: si la URL es correcta, continuar igual
+                if "settlement-letters" not in (page.url or ""):
+                    raise Exception("No se detectó la pantalla de Consulta de Cartas después de navegación directa.")
+                log("URL correcta, continuando aunque el texto no se detectó.", "warn")
+            else:
+                log("Pantalla 'Consulta de Cartas' cargada correctamente.")
 
             completadas = cargar_progreso(ips_dir)
             pendientes = []
@@ -856,9 +875,11 @@ def run_automation(usuario, password, tipo_acceso, lote, valores, download_path,
         else:
             log("Proceso detenido por el usuario.")
     finally:
+        # Solo marcar como terminado si no hay un wrapper de reintentos controlando el estado
         with job_lock:
-            job_state["running"] = False
-            job_state["finished"] = True
+            if not job_state.get("_reintento_activo"):
+                job_state["running"] = False
+                job_state["finished"] = True
             job_state["stopping"] = False
         current_browser = None
         current_context = None
@@ -879,6 +900,67 @@ def parse_valores(texto):
             vistos.add(c)
             res.append(c)
     return res
+
+# ==================== REINTENTOS AUTOMÁTICOS ====================
+MAX_CICLOS_REINTENTO = 5  # máximo de veces que el bot se relanza solo
+
+def run_automation_con_reintentos(usuario, password, tipo_acceso, lote, valores, dl_path, login_timeout):
+    """Envuelve run_automation con lógica de reintento automático.
+    Si al terminar quedan errores, vuelve a lanzar el bot SOLO con las
+    cartas que fallaron, hasta MAX_CICLOS_REINTENTO veces en total.
+    Las credenciales y el lote se conservan entre ciclos."""
+
+    ciclo = 1
+    valores_actuales = list(valores)
+
+    with job_lock:
+        job_state["_reintento_activo"] = True
+
+    while ciclo <= MAX_CICLOS_REINTENTO:
+        if job_state.get("stopping"):
+            break
+
+        if ciclo > 1:
+            log(f"🔄 Reintento automático {ciclo}/{MAX_CICLOS_REINTENTO} — {len(valores_actuales)} carta(s) con error...", "warn")
+            time.sleep(4)  # pausa breve antes de relanzar el navegador
+            # Resetear stats para el nuevo ciclo (sin borrar el progreso en disco)
+            with job_lock:
+                job_state["running"] = True
+                job_state["finished"] = False
+                job_state["error"] = None
+                job_state["stats"]["errores"] = 0
+                job_state["errores_detalle"] = []
+
+        # Ejecutar el bot con la lista actual
+        run_automation(usuario, password, tipo_acceso, lote, valores_actuales, dl_path, login_timeout)
+
+        if job_state.get("stopping"):
+            break
+
+        # Revisar qué quedó con error
+        with job_lock:
+            errores = [e["consecutivo"] for e in job_state.get("errores_detalle", [])]
+
+        if not errores:
+            # Sin errores — terminó limpio
+            if ciclo > 1:
+                log(f"✅ Todos los errores resueltos en el ciclo {ciclo}.", "success")
+            break
+
+        ciclo += 1
+        if ciclo > MAX_CICLOS_REINTENTO:
+            log(f"⚠️ Se alcanzó el máximo de {MAX_CICLOS_REINTENTO} intentos. "
+                f"{len(errores)} carta(s) persisten con error y quedan en el Excel.", "warn")
+            break
+
+        # Preparar la siguiente ronda solo con los que fallaron
+        valores_actuales = errores
+
+    # Marcar como terminado y desactivar bandera de reintento
+    with job_lock:
+        job_state["_reintento_activo"] = False
+        job_state["running"] = False
+        job_state["finished"] = True
 
 # ==================== RUTAS FLASK ====================
 @app.route("/")
@@ -915,10 +997,11 @@ def start_job():
         job_state["errores_detalle"] = []
         job_state["descargas_exitosas"] = []
         job_state["logs"] = []
+        job_state["_reintento_activo"] = False
 
     dl_path = custom_path if custom_path else str(DOWNLOAD_DIR / lote_safe)
     t = threading.Thread(
-        target=run_automation,
+        target=run_automation_con_reintentos,
         args=(usuario, password, tipo_acceso, lote_safe, valores, dl_path, login_timeout),
         daemon=True,
     )
@@ -1070,6 +1153,97 @@ def get_progreso():
         except Exception:
             pass
     return jsonify({"progreso": resultados})
+
+
+@app.route("/api/cruce", methods=["POST"])
+def api_cruce():
+    """Cruza los 3 Excel y devuelve los consecutivos que cumplen ambas condiciones:
+    1. La factura NO tiene fecha de glosa en Cartera (o no existe en Cartera).
+    2. La factura NO aparece en Esculapio.
+    """
+    try:
+        import pandas as pd
+        from io import BytesIO
+
+        f_mundial   = request.files.get("mundial")
+        f_cartera   = request.files.get("cartera")
+        f_esculapio = request.files.get("esculapio")
+
+        if not all([f_mundial, f_cartera, f_esculapio]):
+            return jsonify({"ok": False, "error": "Faltan archivos. Se requieren los 3 Excel."}), 400
+
+        # ── Leer Excel Mundial (header en fila 3, índice 3) ──
+        df_mundial = pd.read_excel(BytesIO(f_mundial.read()), header=3)
+        # Columna A = Numero Factura, Columna M (índice 12) = Consecutivo
+        col_factura_m = df_mundial.columns[0]
+        col_consec    = df_mundial.columns[12]
+        df_mundial = df_mundial[[col_factura_m, col_consec]].dropna(subset=[col_consec])
+        df_mundial[col_factura_m] = df_mundial[col_factura_m].astype(str).str.strip()
+        df_mundial[col_consec]    = df_mundial[col_consec].astype(str).str.strip()
+        # Filtrar solo filas que parezcan consecutivos reales
+        df_mundial = df_mundial[df_mundial[col_consec].str.match(r"^(DEV|LIQ|CMV)-")]
+
+        # ── Leer Excel Cartera (header en fila 0 de datos, skiprows=1) ──
+        df_cartera = pd.read_excel(BytesIO(f_cartera.read()), skiprows=1, header=0)
+        # Col A = No. FACTURA, Col P (índice 15) = FECHA DE GLOSA
+        col_fac_c   = df_cartera.columns[0]
+        col_glosa   = df_cartera.columns[15]
+        df_cartera[col_fac_c] = df_cartera[col_fac_c].astype(str).str.strip()
+        # Construir set de facturas CON fecha de glosa (estas se excluyen)
+        con_glosa = set(
+            df_cartera[df_cartera[col_glosa].notna()][col_fac_c].tolist()
+        )
+        todas_cartera = set(df_cartera[col_fac_c].tolist())
+
+        # ── Leer Excel Esculapio (col B = nofactura) ──
+        df_esc = pd.read_excel(BytesIO(f_esculapio.read()), header=0)
+        col_nofac = df_esc.columns[1]  # columna B
+        # Normalizar: quitar guion del prefijo "71-73582" → "7173582"
+        esc_facturas = set(
+            df_esc[col_nofac].astype(str).str.replace("-", "", regex=False).str.strip().tolist()
+        )
+
+        # ── Aplicar filtros ──
+        consecutivos = []
+        for _, row in df_mundial.iterrows():
+            factura   = row[col_factura_m]
+            consec    = row[col_consec]
+            # Normalizar factura mundial también (por si acaso)
+            fac_norm  = factura.replace("-", "").strip()
+
+            # Condición 1: sin fecha de glosa en Cartera (o no existe en Cartera)
+            cond1 = factura not in con_glosa
+
+            # Condición 2: no aparece en Esculapio
+            cond2 = fac_norm not in esc_facturas
+
+            if cond1 and cond2:
+                consecutivos.append(consec)
+
+        # Eliminar duplicados conservando orden
+        vistos = set()
+        unicos = []
+        for c in consecutivos:
+            if c not in vistos:
+                vistos.add(c)
+                unicos.append(c)
+
+        return jsonify({
+            "ok": True,
+            "consecutivos": unicos,
+            "stats": {
+                "mundial":    len(df_mundial),
+                "cartera":    len(todas_cartera),
+                "sin_glosa":  len(df_mundial) - sum(
+                    1 for _, r in df_mundial.iterrows() if r[col_factura_m] in con_glosa
+                ),
+                "esculapio":  len(esc_facturas),
+            }
+        })
+
+    except Exception as e:
+        log(f"Error en cruce de Excel: {e}", "error")
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 @app.route("/downloads/<path:filename>")
 def download_file(filename):

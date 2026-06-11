@@ -146,6 +146,36 @@
   .btn-modal:hover { transform: translateY(-1px); }
 
   @media (max-width: 780px) { main { grid-template-columns: 1fr; } }
+
+  /* ── Pestañas principales ── */
+  .tabs-nav { display: flex; gap: 0; border-bottom: 2px solid var(--border); margin: 0 24px; }
+  .tab-btn { padding: 10px 22px; font-size: 0.78rem; font-weight: 600; color: var(--text-secondary); background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px; }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-btn:hover:not(.active) { color: var(--text-primary); background: #f8fafc; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: contents; }
+
+  /* ── Módulo cruce ── */
+  .cruce-grid { max-width: 1200px; margin: 0 auto; padding: 16px 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+  .upload-excel { border-radius: 10px; padding: 12px 14px; background: #f8fafc; border: 1px solid var(--border); }
+  .upload-excel .upload-label-title { font-size: 0.65rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 5px; }
+  .upload-excel .file-name { font-size: 0.7rem; color: var(--text-secondary); margin-top: 6px; min-height: 16px; font-style: italic; }
+  .upload-excel .file-name.loaded { color: var(--accent); font-style: normal; font-weight: 500; }
+  .btn-seleccionar { display: inline-flex; align-items: center; gap: 6px; padding: 7px 16px; background: var(--bg-card); border: 1.5px solid var(--border); border-radius: 7px; font-size: 0.72rem; font-weight: 600; color: var(--text-secondary); cursor: pointer; transition: all 0.15s; }
+  .btn-seleccionar:hover { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
+  .btn-cruce { width: 100%; padding: 11px; background: linear-gradient(135deg, var(--accent), #2aa8e8); color: white; border: none; border-radius: 9px; font-size: 0.8rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; transition: all 0.2s; box-shadow: 0 3px 10px rgba(10,143,214,0.2); }
+  .btn-cruce:hover:not(:disabled) { transform: translateY(-1px); }
+  .btn-cruce:disabled { opacity: 0.5; cursor: not-allowed; }
+  .cruce-resultado { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .cruce-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; max-height: 200px; overflow-y: auto; }
+  .cruce-chip { font-size: 0.68rem; padding: 3px 9px; border-radius: 5px; font-weight: 500; }
+  .chip-dev { background: rgba(10,143,214,0.1); color: var(--accent); }
+  .chip-liq { background: rgba(16,185,129,0.1); color: var(--success); }
+  .btn-cargar-lista { margin-top: 12px; width: 100%; padding: 10px; background: linear-gradient(135deg, var(--success), #059669); color: white; border: none; border-radius: 8px; font-size: 0.78rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s; }
+  .btn-cargar-lista:hover { transform: translateY(-1px); }
+  .btn-descargar-cruce { margin-top: 8px; width: 100%; padding: 9px; background: #f1f5f9; color: var(--text-secondary); border: 1px solid var(--border); border-radius: 8px; font-size: 0.75rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s; }
+  .btn-descargar-cruce:hover { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
+  .cruce-log { background: #0d1117; color: #7ee787; border-radius: 8px; padding: 10px 14px; font-size: 0.68rem; font-family: monospace; margin-top: 10px; min-height: 60px; max-height: 120px; overflow-y: auto; }
 </style>
 </head>
 <body>
@@ -158,6 +188,17 @@
   </div>
 </header>
 
+<!-- Nav de pestañas -->
+<div class="tabs-nav">
+  <button class="tab-btn active" onclick="switchTab('descargador', this)">
+    <i class="fas fa-download"></i> Descargador
+  </button>
+  <button class="tab-btn" onclick="switchTab('cruce', this)">
+    <i class="fas fa-code-branch"></i> Cruce de Excel
+  </button>
+</div>
+
+<div id="tab-descargador" class="tab-panel active">
 <main>
 
   <!-- Panel izquierdo: Configuración -->
@@ -287,6 +328,92 @@
 
   </div>
 </main>
+
+</main>
+</div><!-- fin tab descargador -->
+
+<!-- ═══════════════ PESTAÑA: CRUCE DE EXCEL ═══════════════ -->
+<div id="tab-cruce" class="tab-panel">
+<div class="cruce-grid">
+
+  <!-- Columna izquierda: uploaders -->
+  <div style="display:flex;flex-direction:column;gap:14px;">
+
+    <div class="card">
+      <div class="card-header">
+        <span class="icon"><i class="fas fa-file-excel"></i></span> Cargar archivos Excel
+      </div>
+      <div class="card-body" style="display:flex;flex-direction:column;gap:14px;">
+
+        <!-- Excel Mundial -->
+        <div class="upload-excel">
+          <div class="upload-label-title"><i class="fas fa-globe" style="color:#0a8fd6"></i> Excel Mundial (Reporte MS)</div>
+          <label for="mundialFile" class="btn-seleccionar"><i class="fas fa-file-excel"></i> Seleccionar archivo</label>
+          <input type="file" id="mundialFile" accept=".xlsx,.xls" style="display:none" onchange="setFileName(this,'mundialName')">
+          <div class="file-name" id="mundialName">Ningún archivo seleccionado</div>
+        </div>
+
+        <!-- Excel Cartera -->
+        <div class="upload-excel">
+          <div class="upload-label-title"><i class="fas fa-folder-open" style="color:#f59e0b"></i> Excel Cartera IPS</div>
+          <label for="carteraFile" class="btn-seleccionar"><i class="fas fa-file-excel"></i> Seleccionar archivo</label>
+          <input type="file" id="carteraFile" accept=".xlsx,.xls" style="display:none" onchange="setFileName(this,'carteraName')">
+          <div class="file-name" id="carteraName">Ningún archivo seleccionado</div>
+        </div>
+
+        <!-- Excel Esculapio -->
+        <div class="upload-excel">
+          <div class="upload-label-title"><i class="fas fa-hospital" style="color:#10b981"></i> Excel Esculapio</div>
+          <label for="esculapioFile" class="btn-seleccionar"><i class="fas fa-file-excel"></i> Seleccionar archivo</label>
+          <input type="file" id="esculapioFile" accept=".xlsx,.xls" style="display:none" onchange="setFileName(this,'esculapioName')">
+          <div class="file-name" id="esculapioName">Ningún archivo seleccionado</div>
+        </div>
+
+        <button class="btn-cruce" id="btnCruce" onclick="ejecutarCruce()">
+          <i class="fas fa-code-branch"></i> Ejecutar cruce
+        </button>
+
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="icon"><i class="fas fa-info-circle"></i></span> ¿Cómo funciona?
+      </div>
+      <div class="card-body" style="font-size:0.7rem;color:var(--text-secondary);line-height:1.7;">
+        <p>1. <strong>Mundial</strong> es el archivo maestro (col A = N° factura, col M = Consecutivo).</p>
+        <p style="margin-top:6px;">2. Se cruza con <strong>Cartera</strong> (col A = N° factura, col P = Fecha de Glosa). Pasan las facturas sin fecha de glosa o que no estén en Cartera.</p>
+        <p style="margin-top:6px;">3. Se cruza con <strong>Esculapio</strong> (col B = nofactura). Pasan las que <em>no</em> aparecen en Esculapio.</p>
+        <p style="margin-top:6px;">4. El resultado son los <strong>Consecutivos</strong> que cumplen <em>ambas</em> condiciones.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Columna derecha: resultado -->
+  <div style="display:flex;flex-direction:column;gap:14px;">
+    <div class="card">
+      <div class="card-header">
+        <span class="icon"><i class="fas fa-list-check"></i></span> Resultado del cruce
+        <span id="cruceConteo" style="margin-left:auto;font-size:0.68rem;color:var(--text-secondary);"></span>
+      </div>
+      <div class="card-body">
+        <div id="cruceLog" class="cruce-log">Aquí aparecerá el resultado del cruce...</div>
+        <div class="cruce-chips" id="cruceChips"></div>
+        <div id="cruceBotones" style="display:none;">
+          <button class="btn-cargar-lista" onclick="cargarCruceAlDescargador()">
+            <i class="fas fa-arrow-right"></i> Cargar al descargador
+          </button>
+          <button class="btn-descargar-cruce" onclick="descargarCruceExcel()">
+            <i class="fas fa-file-download"></i> Descargar como Excel
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div><!-- fin tab cruce -->
 
 <!-- Modal historial de progreso -->
 <div id="progresoModal" class="modal">
@@ -606,6 +733,126 @@ function closeProgresoModal() {
 window.addEventListener('click', (e) => {
   if (e.target === document.getElementById('progresoModal')) closeProgresoModal();
 });
+
+// ── Pestañas ─────────────────────────────────────────────────────────────────
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ── Cruce de Excel ────────────────────────────────────────────────────────────
+let _cruceResultado = [];
+
+function setFileName(input, labelId) {
+  const el = document.getElementById(labelId);
+  if (input.files[0]) {
+    el.textContent = input.files[0].name;
+    el.classList.add('loaded');
+  } else {
+    el.textContent = 'Ningún archivo seleccionado';
+    el.classList.remove('loaded');
+  }
+}
+
+function crucLog(msg, color) {
+  const el = document.getElementById('cruceLog');
+  const line = document.createElement('div');
+  line.style.color = color || '#7ee787';
+  line.textContent = msg;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+async function ejecutarCruce() {
+  const mundial = document.getElementById('mundialFile').files[0];
+  const cartera = document.getElementById('carteraFile').files[0];
+  const esculapio = document.getElementById('esculapioFile').files[0];
+
+  if (!mundial || !cartera || !esculapio) {
+    alert('Carga los 3 archivos Excel antes de ejecutar el cruce.');
+    return;
+  }
+
+  document.getElementById('cruceLog').innerHTML = '';
+  document.getElementById('cruceChips').innerHTML = '';
+  document.getElementById('cruceBotones').style.display = 'none';
+  document.getElementById('cruceConteo').textContent = '';
+  crucLog('Procesando archivos...');
+
+  const btn = document.getElementById('btnCruce');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+
+  try {
+    const fd = new FormData();
+    fd.append('mundial', mundial);
+    fd.append('cartera', cartera);
+    fd.append('esculapio', esculapio);
+
+    const r = await fetch('/api/cruce', { method: 'POST', body: fd });
+    const d = await r.json();
+
+    if (!d.ok) {
+      crucLog('ERROR: ' + d.error, '#f87171');
+      return;
+    }
+
+    _cruceResultado = d.consecutivos;
+    const chips = document.getElementById('cruceChips');
+    const conteo = document.getElementById('cruceConteo');
+
+    crucLog(`✔ Mundial: ${d.stats.mundial} facturas`);
+    crucLog(`✔ Cartera: ${d.stats.cartera} facturas (${d.stats.sin_glosa} sin glosa o sin cruce)`);
+    crucLog(`✔ Esculapio: ${d.stats.esculapio} facturas`);
+    crucLog(`─────────────────────────────`);
+    crucLog(`Resultado: ${_cruceResultado.length} consecutivo(s) para descargar`);
+
+    if (_cruceResultado.length === 0) {
+      crucLog('No hay consecutivos que cumplan ambas condiciones.', '#fbbf24');
+    } else {
+      _cruceResultado.forEach(c => {
+        const span = document.createElement('span');
+        span.className = 'cruce-chip ' + (c.startsWith('DEV') ? 'chip-dev' : 'chip-liq');
+        span.textContent = c;
+        chips.appendChild(span);
+      });
+      conteo.textContent = `${_cruceResultado.length} consecutivos`;
+      document.getElementById('cruceBotones').style.display = 'block';
+    }
+
+  } catch(e) {
+    crucLog('Error de red: ' + e.message, '#f87171');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-code-branch"></i> Ejecutar cruce';
+  }
+}
+
+function cargarCruceAlDescargador() {
+  if (!_cruceResultado.length) return;
+  // Poner los consecutivos en el textarea y cambiar a la pestaña descargador
+  document.getElementById('valores').value = _cruceResultado.join('\n');
+  // Disparar el evento input para que detecte los chips
+  document.getElementById('valores').dispatchEvent(new Event('input'));
+  // Cambiar a pestaña descargador
+  document.querySelector('.tab-btn').click();
+  setTimeout(() => {
+    document.getElementById('valores').scrollIntoView({ behavior: 'smooth' });
+  }, 200);
+}
+
+function descargarCruceExcel() {
+  if (!_cruceResultado.length) return;
+  const rows = [['Consecutivo'], ..._cruceResultado.map(c => [c])];
+  const csv = rows.map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'consecutivos_cruce.csv';
+  a.click();
+}
 
 // ── Init ───────────────────────────────────────────────────────────────────
 updatePathDisplay();

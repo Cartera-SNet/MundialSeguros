@@ -31,12 +31,17 @@ if not exist "%VENV_DIR%" (
 :: Activar entorno virtual
 call "%VENV_DIR%\Scripts\activate.bat"
 
-:: Instalar dependencias
-echo Instalando dependencias...
-pip install --quiet -r "%SCRIPT_DIR%requirements.txt"
+:: Instalar/actualizar dependencias siempre (detecta nuevos paquetes automaticamente)
+echo Verificando dependencias...
+pip install --upgrade -r "%SCRIPT_DIR%requirements.txt"
+if errorlevel 1 (
+    echo [ERROR] Fallo la instalacion de dependencias.
+    pause
+    exit /b 1
+)
 
-:: Instalar Chromium
-echo Instalando Playwright Chromium...
+:: Instalar Chromium (solo descarga si ya esta instalado, es rapido)
+echo Verificando Playwright Chromium...
 python -m playwright install chromium
 
 :: Crear carpeta de descargas
