@@ -3,6 +3,7 @@ Descargador automático de cartas glosa — Seguros Mundial
 Flujo: login + agregar cartas + descarga de ZIPs del portal.
 Estructura final: un solo ZIP por IPS con carpetas DEV/ y LIQ/ + Excel.
 """
+
 import os
 import re
 import json
@@ -1023,22 +1024,25 @@ def reset_job_route():
         if job_state["running"]:
             stop_job()
             time.sleep(2)
+    # Si hay lote, borra solo el de ese lote. Si NO hay lote, borra TODOS los progreso.json.
     if lote:
         lote_safe = re.sub(r"[^\w\-]", "_", lote)
-        lote_dir = DOWNLOAD_DIR / lote_safe
-        borrados = 0
-        if lote_dir.exists():
-            for cand in list(lote_dir.glob("**/progreso.json")):
-                try:
-                    cand.unlink()
-                    borrados += 1
-                    log(f"Progreso eliminado: {cand}")
-                except Exception as e:
-                    log(f"Error al borrar progreso: {e}", "warn")
-        if borrados == 0:
-            log("No se encontro progreso para borrar en ese lote.", "warn")
+        base = DOWNLOAD_DIR / lote_safe
+    else:
+        base = DOWNLOAD_DIR
+    borrados = 0
+    if base.exists():
+        for cand in list(base.glob("**/progreso.json")):
+            try:
+                cand.unlink()
+                borrados += 1
+                log(f"Progreso eliminado: {cand}")
+            except Exception as e:
+                log(f"Error al borrar progreso: {e}", "warn")
+    if borrados == 0:
+        log("No se encontro progreso para borrar.", "warn")
     reset_state()
-    return jsonify({"ok": True, "message": "Estado reiniciado y progreso eliminado."})
+    return jsonify({"ok": True, "message": f"Progreso eliminado ({borrados} archivo(s)). Los soportes se conservaron."})
 
 @app.route("/api/status")
 def get_status():

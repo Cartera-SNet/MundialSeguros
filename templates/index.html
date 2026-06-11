@@ -380,11 +380,19 @@
       <div class="card-header">
         <span class="icon"><i class="fas fa-info-circle"></i></span> ¿Cómo funciona?
       </div>
-      <div class="card-body" style="font-size:0.7rem;color:var(--text-secondary);line-height:1.7;">
-        <p>1. <strong>Mundial</strong> es el archivo maestro (col A = N° factura, col M = Consecutivo).</p>
-        <p style="margin-top:6px;">2. Se cruza con <strong>Cartera</strong> (col A = N° factura, col P = Fecha de Glosa). Pasan las facturas sin fecha de glosa o que no estén en Cartera.</p>
-        <p style="margin-top:6px;">3. Se cruza con <strong>Esculapio</strong> (col B = nofactura). Pasan las que <em>no</em> aparecen en Esculapio.</p>
-        <p style="margin-top:6px;">4. El resultado son los <strong>Consecutivos</strong> que cumplen <em>ambas</em> condiciones.</p>
+      <div class="card-body" style="display:flex;flex-direction:column;gap:12px;">
+        <div style="display:flex;align-items:flex-start;gap:11px;font-size:0.78rem;color:var(--text-primary);">
+          <span style="width:26px;height:26px;border-radius:50%;background:rgba(10,143,214,0.12);color:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;font-size:0.75rem;">1</span>
+          <span style="padding-top:3px;">Carga los tres reportes: <strong>Mundial</strong>, <strong>Cartera</strong> y <strong>Esculapio</strong>.</span>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:11px;font-size:0.78rem;color:var(--text-primary);">
+          <span style="width:26px;height:26px;border-radius:50%;background:rgba(10,143,214,0.12);color:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;font-size:0.75rem;">2</span>
+          <span style="padding-top:3px;">El sistema compara las facturas y depura automáticamente las ya gestionadas.</span>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:11px;font-size:0.78rem;color:var(--text-primary);">
+          <span style="width:26px;height:26px;border-radius:50%;background:rgba(10,143,214,0.12);color:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;font-size:0.75rem;">3</span>
+          <span style="padding-top:3px;">Obtienes la relación final de cartas pendientes, lista para descargar.</span>
+        </div>
       </div>
     </div>
 
