@@ -299,8 +299,8 @@
       <p style="color:var(--text-secondary)">Cargando...</p>
     </div>
     <div class="modal-footer" style="justify-content:space-between;">
-      <button onclick="deleteSoportes()" style="background:none;border:1px solid #e74c3c;color:#e74c3c;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;">
-        🗑 Borrar soportes (conserva progreso)
+      <button onclick="deleteProgreso()" style="background:none;border:1px solid #e74c3c;color:#e74c3c;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;">
+        🗑 Borrar progreso
       </button>
       <button onclick="closeProgresoModal()" class="btn-modal gray">Cerrar</button>
     </div>
@@ -483,6 +483,15 @@ function escHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 
 // ── Archivos ─────────────────────────────────────────────────────────────────
 function loteSafe() { return document.getElementById('lote').value.trim().replace(/[^\w\-]/g,'_'); }
+
+async function deleteProgreso() {
+  const lote = document.getElementById('lote').value.trim();
+  if (!confirm(`¿Borrar el historial de progreso${lote?' del lote "'+lote+'"':''}?\n\nLos soportes (ZIPs/PDFs) NO se borran.`)) return;
+  const r = await fetch('/api/reset', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ lote }) });
+  const d = await r.json();
+  if (d.ok) { closeProgresoModal(); alert('✅ Progreso eliminado. Los soportes se conservaron.'); }
+  else alert('❌ ' + (d.error || d.message));
+}
 
 async function deleteSoportes() {
   const lote = loteSafe();
