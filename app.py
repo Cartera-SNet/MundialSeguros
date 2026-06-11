@@ -36,7 +36,7 @@ BASE_DIR = Path(__file__).parent
 port = int(os.environ.get("PORT", 8080))
 
 # En Railway se monta un volumen persistente en /data.
-# Localmente (sin volumen) usa la carpeta downloads/ del proyecto.
+# Localmente sin volumen usa la carpeta downloads/ del proyecto.
 _data_root = Path(os.environ.get("DATA_DIR", "/data"))
 if _data_root.exists():
     DOWNLOAD_DIR = _data_root / "downloads"
