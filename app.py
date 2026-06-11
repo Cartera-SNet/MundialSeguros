@@ -3,7 +3,6 @@ Descargador automático de cartas glosa — Seguros Mundial
 Flujo: login + agregar cartas + descarga de ZIPs del portal.
 Estructura final: un solo ZIP por IPS con carpetas DEV/ y LIQ/ + Excel.
 """
-
 import os
 import re
 import json
