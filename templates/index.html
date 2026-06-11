@@ -620,12 +620,17 @@ function escHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 function loteSafe() { return document.getElementById('lote').value.trim().replace(/[^\w\-]/g,'_'); }
 
 async function deleteProgreso() {
-  const lote = document.getElementById('lote').value.trim();
-  if (!confirm(`¿Borrar el historial de progreso${lote?' del lote "'+lote+'"':''}?\n\nLos soportes (ZIPs/PDFs) NO se borran.`)) return;
-  const r = await fetch('/api/reset', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ lote }) });
+  if (!confirm(`¿Borrar TODO el historial de progreso?\n\nLos soportes (ZIPs/PDFs) NO se borran.`)) return;
+  // Enviar lote vacío → el backend borra todos los progreso.json
+  const r = await fetch('/api/reset', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ lote: '' }) });
   const d = await r.json();
-  if (d.ok) { closeProgresoModal(); alert('✅ Progreso eliminado. Los soportes se conservaron.'); }
-  else alert('❌ ' + (d.error || d.message));
+  if (d.ok) {
+    alert('✅ ' + (d.message || 'Progreso eliminado.'));
+    // Recargar el modal para mostrar que quedó vacío
+    openProgresoModal();
+  } else {
+    alert('❌ ' + (d.error || d.message));
+  }
 }
 
 async function deleteSoportes() {
