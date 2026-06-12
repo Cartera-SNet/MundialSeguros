@@ -347,12 +347,20 @@ def _input_por_label(page, etiqueta_regex):
         return None
 
 def _seleccionar_tipo_solicitud(page, tipo):
-    inp = _input_por_label(page, r"tipo de solicitud")
-    if inp is None:
-        try:
-            inp = page.locator('input[role="combobox"], input.mat-autocomplete-trigger').first.element_handle(timeout=4000)
-        except Exception:
-            inp = None
+    # Buscar el campo con reintentos: Angular puede tardar en renderizar el formulario.
+    inp = None
+    for intento in range(12):  # hasta ~12 segundos
+        if job_state.get("stopping"):
+            return
+        inp = _input_por_label(page, r"tipo de solicitud|seleccione tipo")
+        if inp is None:
+            try:
+                inp = page.locator('input[role="combobox"], input.mat-autocomplete-trigger, mat-form-field input').first.element_handle(timeout=2000)
+            except Exception:
+                inp = None
+        if inp is not None:
+            break
+        time.sleep(1)
     if inp is None:
         raise Exception("No se encontró el campo 'Seleccione tipo de solicitud'.")
 
@@ -666,12 +674,14 @@ def run_automation(usuario, password, tipo_acceso, lote, valores, download_path,
                 _seleccionar_tipo_solicitud(page, "No Dev/Obj")
                 # Registrar cartas para el Excel posterior
                 cartas_dev_registradas = []
+                exitos_dev = 0
                 for idx, valor in enumerate(lista_dev, 1):
                     if job_state.get("stopping"):
                         break
                     log(f"[DEV {idx}/{len(lista_dev)}]")
                     try:
                         _agregar_carta_sin_tipo(page, valor, etiqueta="DEV")
+                        exitos_dev += 1
                         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         with job_lock:
                             job_state["descargas_exitosas"].append({
@@ -709,8 +719,8 @@ def run_automation(usuario, password, tipo_acceso, lote, valores, download_path,
                         except Exception:
                             pass
 
-                if not job_state.get("stopping") and lista_dev:
-                    log("Descargando y extrayendo ZIP de DEV...")
+                if not job_state.get("stopping") and exitos_dev > 0:
+                    log(f"Descargando y extrayendo ZIP de DEV ({exitos_dev} carta(s) en buzón)...")
                     try:
                         _descargar_zip_y_extraer(page, context, ips_dir, "DEV")
                         # Las cartas ahora están en ips_dir/DEV/
@@ -734,12 +744,14 @@ def run_automation(usuario, password, tipo_acceso, lote, valores, download_path,
                 log("Seleccionando tipo 'No Liquidación' (solo una vez)...")
                 _seleccionar_tipo_solicitud(page, "No Liquidación")
                 cartas_liq_registradas = []
+                exitos_liq = 0
                 for idx, valor in enumerate(lista_liq, 1):
                     if job_state.get("stopping"):
                         break
                     log(f"[LIQ {idx}/{len(lista_liq)}]")
                     try:
                         _agregar_carta_sin_tipo(page, valor, etiqueta="LIQ")
+                        exitos_liq += 1
                         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         with job_lock:
                             job_state["descargas_exitosas"].append({
@@ -777,8 +789,8 @@ def run_automation(usuario, password, tipo_acceso, lote, valores, download_path,
                         except Exception:
                             pass
 
-                if not job_state.get("stopping") and lista_liq:
-                    log("Descargando y extrayendo ZIP de LIQ...")
+                if not job_state.get("stopping") and exitos_liq > 0:
+                    log(f"Descargando y extrayendo ZIP de LIQ ({exitos_liq} carta(s) en buzón)...")
                     try:
                         _descargar_zip_y_extraer(page, context, ips_dir, "LIQ")
                         with job_lock:
@@ -854,10 +866,14 @@ def run_automation(usuario, password, tipo_acceso, lote, valores, download_path,
                             arcname = f"Errores/{file_path.relative_to(errores_dir)}"
                             zf.write(file_path, arcname)
             log(f"ZIP final creado: {final_zip_path.name}", "success")
-            # Limpiar las carpetas extraídas (opcional, para no duplicar espacio)
-            shutil.rmtree(dev_extract_dir, ignore_errors=True)
-            shutil.rmtree(liq_extract_dir, ignore_errors=True)
-            if excel_path:
+            # NO borrar las carpetas DEV/LIQ si hay un reintento activo:
+            # los reintentos acumulan PDFs sobre estas carpetas. Solo se limpian
+            # cuando ya no quedan errores pendientes (proceso realmente terminado).
+            hay_errores_pendientes = len(errores) > 0 and job_state.get("_reintento_activo")
+            if not hay_errores_pendientes:
+                shutil.rmtree(dev_extract_dir, ignore_errors=True)
+                shutil.rmtree(liq_extract_dir, ignore_errors=True)
+            if excel_path and excel_path.exists():
                 excel_path.unlink()
             # El progreso.json lo dejamos
 
