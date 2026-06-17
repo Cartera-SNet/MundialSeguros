@@ -2,7 +2,7 @@
 startCommand = "python3 app.py"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
-sleepApplication = true    ← ESTO ACTIVA EL SLEEP
+sleepApplication = true
 
 [build]
 builder = "DOCKERFILE"
