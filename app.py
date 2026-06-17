@@ -72,7 +72,33 @@ MAPA_IPS = {
     "900847382": "CENTRO_MEDICO_Y_DE_REHABILITACION_VALLE_SALUD",
 }
 
+# Mapa de correos electrónicos a IPS (para usuarios que usan email en lugar de NIT)
+MAPA_CORREOS = {
+    "carteracdibahia@gmail.com":          ("900827065", "CENTRO_DE_DIAGNOSTICO_E_IMAGENES_BAHIA"),
+    "carteraclinicabahia@gmail.com":       ("900267064", "INVERSIONES_AZALUD_CLINICA_BAHIA"),
+    "carteracentromedicobahia@gmail.com":  ("900657731", "CENTRO_MEDICO_Y_DE_REHABILITACION_BAHIA"),
+    "carteraimbbaru@gmail.com":            ("900600550", "INVERSIONES_MEDICAS_BARU"),
+    "carteracentromedicobahia@gmail.com":  ("900657731", "CENTRO_MEDICO_Y_DE_REHABILITACION_BAHIA"),
+    "carterarucmagdalena@gmail.com":       ("900826509", "RED_DE_URGENCIAS_DEL_MAGDALENA"),
+    "glosas@salud-net.com":               ("901081281", "URGETRAUMA"),
+    "auditoria@salud-net.com":             ("900631361", "INVERSIONES_MEDICAS_VALLESALUD"),
+    "devolucion.objecion@salud-net.com":   ("900002780", "CMQ_ALVERNIA"),
+    "vallesaludc@gmail.com":              ("900847382", "CENTRO_MEDICO_Y_DE_REHABILITACION_VALLE_SALUD"),
+}
+
 def resolver_ips_por_usuario(usuario: str):
+    u = (usuario or "").strip().lower()
+    # 1. Si el usuario es un correo electrónico, buscar en el mapa de correos
+    if "@" in u:
+        if u in MAPA_CORREOS:
+            nit, nombre = MAPA_CORREOS[u]
+            return nit, nombre
+        # Buscar por coincidencia parcial del correo
+        for correo, (nit, nombre) in MAPA_CORREOS.items():
+            if u == correo.lower():
+                return nit, nombre
+        return None, "IPS_DESCONOCIDA"
+    # 2. Si tiene dígitos, extraer NIT
     m = re.search(r"(\d{9,12})", usuario or "")
     nit = m.group(1) if m else None
     nombre = MAPA_IPS.get(nit, "IPS_DESCONOCIDA") if nit else "IPS_DESCONOCIDA"
@@ -150,13 +176,8 @@ def stop_job():
     with job_lock:
         job_state["stopping"] = True
     log("Solicitando detencion del proceso...", "warn")
-    if current_browser:
-        try:
-            current_browser.close()
-            log("  -> Navegador cerrado por solicitud de stop.")
-        except Exception as e:
-            log(f"  -> Error al cerrar navegador: {e}", "error")
-    generar_zip_parcial()  # ya no se usa en la nueva estructura, pero se mantiene por compatibilidad
+    # No cerrar el browser desde este hilo — Playwright requiere que se cierre
+    # desde el mismo hilo que lo creó. El job lo cerrará al detectar stopping=True.
 
 def generar_zip_parcial():
     # Esta función se puede eliminar o mantener como respaldo
@@ -241,21 +262,37 @@ def _hacer_login(page, usuario, password, login_timeout):
     page.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=60000)
     time.sleep(2)
 
+    # Detectar si el usuario es correo electrónico
+    es_correo = "@" in (usuario or "")
+    tipo_label = "Correo electrónico" if es_correo else "Usuario"
+    log(f"  Tipo de acceso detectado: {tipo_label}")
+
     try:
         select_locator = page.locator('mat-select[name="typeAccess"]').first
         select_locator.click(timeout=5000)
         log("  Clic en desplegable 'Tipo de Acceso'.")
         time.sleep(0.5)
-        page.keyboard.press("ArrowDown")
-        time.sleep(0.3)
-        page.keyboard.press("Enter")
-        log("  Teclas: Flecha Abajo + Enter para seleccionar 'Usuario'.")
+        if es_correo:
+            # "Correo electrónico" es la segunda opción: ArrowDown x2
+            page.keyboard.press("ArrowDown")
+            time.sleep(0.2)
+            page.keyboard.press("ArrowDown")
+            time.sleep(0.2)
+            page.keyboard.press("Enter")
+            log("  Teclas: Flecha Abajo x2 + Enter para seleccionar 'Correo electrónico'.")
+        else:
+            # "Usuario" es la primera opción: ArrowDown x1
+            page.keyboard.press("ArrowDown")
+            time.sleep(0.3)
+            page.keyboard.press("Enter")
+            log("  Teclas: Flecha Abajo + Enter para seleccionar 'Usuario'.")
         time.sleep(0.5)
     except Exception as e:
-        log(f"  No se pudo seleccionar 'Usuario' con teclado: {e}.", "warn")
+        log(f"  No se pudo seleccionar tipo con teclado: {e}.", "warn")
         try:
-            page.locator('mat-option, .mat-option', has_text=re.compile(r"^Usuario$", re.I)).first.click(timeout=5000)
-            log("  Opción 'Usuario' seleccionada por clic directo (fallback).")
+            texto_opcion = re.compile(r"^Correo electrónico$", re.I) if es_correo else re.compile(r"^Usuario$", re.I)
+            page.locator('mat-option, .mat-option', has_text=texto_opcion).first.click(timeout=5000)
+            log(f"  Opción '{tipo_label}' seleccionada por clic directo (fallback).")
         except Exception as e2:
             log(f"  Fallback también falló: {e2}", "warn")
 
